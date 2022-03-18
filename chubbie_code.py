@@ -7,8 +7,8 @@ bot_client = commands.Bot(command_prefix='🍐')
 
 """===========================Bot Code here==========================="""
 @bot_client.command()
-async def test(ctx):
-    print("i'm working")
+async def hello(ctx):
+    await ctx.send("I'm working bitches")
 
 @bot_client.event
 async def on_raw_reaction_add(payload):
