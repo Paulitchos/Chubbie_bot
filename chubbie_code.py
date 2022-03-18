@@ -55,17 +55,6 @@ async def on_raw_reaction_add(payload):
             else:
                 await payload.send("Não estás em nenhum voice channel pepega") """
 
-
-
-
-
-
-
-
-
-
-
-
 bot_client.run(bot_token)
 
 
