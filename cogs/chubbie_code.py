@@ -12,9 +12,11 @@ class chubbie_code(commands.Cog):
         print("Bot is ready")
         self.bot = bot_client
 
-    @commands.command(name="hello")
+    @commands.command(name="hello",help ="Confirma que o bot está a funcionar")
     async def hello(self,ctx):
         await ctx.send("I'm working bitches")
+
+    
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self,payload):
