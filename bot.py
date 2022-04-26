@@ -18,6 +18,8 @@ class Bot(commands.Bot):
         self.__cogs = [p.stem for p in Path(".").glob("./cogs/*.py")]
         super().__init__(command_prefix = self.prefix, case_insensitive = True, intents = discord.Intents.all())
         self.bot_id = os.getenv('bot_id')
+        self.client_id_spotify = os.getenv('client_id')
+        self.client_secret = os.getenv('client_secret')
 
     def run(self):
         self.__load_cogs()
