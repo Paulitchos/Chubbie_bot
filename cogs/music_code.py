@@ -1,13 +1,10 @@
-from pydoc import describe
-import queue
-from tkinter import E
-from turtle import title
+
 import wavelink
 import discord
 import datetime
 from wavelink.ext import spotify
 from discord.ext import commands
-import youtube_dl
+
 
 def setup(bot : commands.Bot):
     bot.add_cog(music_code(bot))
@@ -35,8 +32,7 @@ class music_code(commands.Cog):
             return await vc.play(track)
         
         print("Track ended, next is playing = ",vc.is_playing())
-
-        try:
+        try:     
             next_song = vc.queue.get()
             await vc.play(next_song)
             await ctx.send(f"Agora a tocar: `{next_song.title}`")
@@ -44,28 +40,6 @@ class music_code(commands.Cog):
             #An exception when after the track end, the queue is now empty. If you dont do this, it will get error.
             await vc.stop()
             print("Queue Empty and stopped, isplaying = ",vc.is_playing())
-
-
-    @commands.command(name="play", aliases=["p","playing"],help ="Mete música a dar || Alternativas 🍐p ou 🍐playing")
-    async def play(self,ctx: commands.Context, *, search: wavelink.YouTubeTrack):
-        
-        if not getattr(ctx.author.voice,"channel",None):
-            return await ctx.send("Entra num voice channel pepega")
-
-        if not ctx.voice_client:
-            vc: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
-        else:
-            vc: wavelink.Player = ctx.voice_client
-
-        if vc.queue.is_empty and not vc.is_playing():
-            await vc.play(search)
-            await ctx.send(f"Agora a tocar `{search.title}`")
-        else:
-            await vc.queue.put_wait(search)
-            await ctx.send(f"Música `{search.title}` adicionada ao queue")
-        
-        vc.ctx = ctx
-        setattr(vc,"loop",False)
 
     @commands.command(name="pause",help ="Mete pausa na música a dar")
     async def pause(self,ctx: commands.Context):
@@ -90,7 +64,19 @@ class music_code(commands.Cog):
 
         await vc.resume()
         await ctx.send("A música está de volta a dar")
-    
+
+    @commands.command(name="skip",help ="Dá skip à música")
+    async def skip(self,ctx: commands.Context):
+        if not ctx.voice_client:
+            return await ctx.send("Não está a dar música")
+        elif not getattr(ctx.author.voice, "channel", None):
+            return await ctx.send("Não estás no voice channel marmanjo")
+        else:
+            vc: wavelink.Player = ctx.voice_client
+
+        await vc.stop()
+        await ctx.send("Música skipped")
+
     @commands.command(name="stop",aliases=["s"],help ="Para de dar música || Alternativas 🍐s")
     async def stop(self,ctx: commands.Context):
         if not ctx.voice_client:
@@ -101,7 +87,9 @@ class music_code(commands.Cog):
             vc: wavelink.Player = ctx.voice_client
 
         await vc.stop()
-        await ctx.send("Parei a música")
+        await ctx.send("Parei a música e limpei o queue")
+        vc.queue.clear()
+
     
     @commands.command(name="leave",aliases=["l","disconnect","d"],help ="Sái do voice channel || Alternativas 🍐l ou 🍐d ou 🍐disconnect")
     async def leave(self,ctx: commands.Context):
@@ -152,7 +140,7 @@ class music_code(commands.Cog):
     
         for song in queue:
             song_count += 1
-            em.add_field(name = f"Song Num {song_count}",value=f"`{song.title}`")
+            em.add_field(name = f"Song Num {song_count}",value=f"`{song}`")
 
         return await ctx.send(embed=em)
 
@@ -174,7 +162,7 @@ class music_code(commands.Cog):
         return await vc.set_volume(volume)
 
     @commands.command(name="now_playing",aliases=["np"],help ="Mostra o que está atualmente a tocar|| Alternativas 🍐np")
-    async def now_playing(self,ctx: commands.Context,volume: int):
+    async def now_playing(self,ctx: commands.Context):
         if not ctx.voice_client:
             return ctx.send("Não está a dar música")
         elif not getattr(ctx.author.voice, "channel", None):
@@ -182,16 +170,16 @@ class music_code(commands.Cog):
         else:
             vc: wavelink.Player = ctx.voice_client
         
-        if not vc.is_playing(): return ctx.send("Não está a dar nada -.-")
+        if not vc.is_playing(): return await ctx.send("Não está a dar nada -.-")
 
         em = discord.Embed(title=f"Agora a tocar: {vc.track.title}",description=f"Artista: {vc.track.author}")
-        em.add_field(nome="Duração",value = f"`{str(datetime.timedelta(seconds=vc.track.length))}`")
-        em.add_field(nome="Informação Extra", value=f"Música URL: [CLICA AQUI]({str(vc.track.url)})")
+        em.add_field(name="Duração",value = f"`{str(datetime.timedelta(seconds=vc.track.length))}`")
+        em.add_field(name="Informação Extra", value=f"Música URL: [CLICA AQUI]({str(vc.track.uri)})")
         
         return await ctx.send(embed=em)
 
-    @commands.command(name="splay", aliases=["sp","splaying"],help ="Mete música a dar do spotify|| Alternativas 🍐sp ou 🍐splaying")
-    async def splay(self,ctx: commands.Context, *, search: str):
+    @commands.command(name="play", aliases=["p","playing"],help ="Mete música a dar || Alternativas 🍐p ou 🍐playing")
+    async def play(self,ctx: commands.Context, *, search: str):
         
         if not getattr(ctx.author.voice,"channel",None):
             return await ctx.send("Entra num voice channel pepega")
@@ -201,19 +189,19 @@ class music_code(commands.Cog):
         else:
             vc: wavelink.Player = ctx.voice_client
 
+        try:
+            tracks = await spotify.SpotifyTrack.search(query = search)
+        except:
+            tracks = await spotify.YouTubeTrack.search(query = search)
+
+        track = tracks[0]
+
         if vc.queue.is_empty and not vc.is_playing():
-            try:
-                partial = wavelink.PartialTrack(query=search, cls=spotify.SpotifyTrack)
-                track = await vc.play(partial)
-                await ctx.send(f"Agora a tocar `{track.title}`")
-            except Exception as e:
-                partialyt = wavelink.PartialTrack(query=search, cls=wavelink.YouTubeTrack)
-                trackyt = await vc.play(partialyt)
-                await ctx.send(f"Agora a tocar `{trackyt.title}`")
-                return print(e)
+            await vc.play(track)  
+            await ctx.send(f"Agora a tocar `{track.title}`")
         else:
-            await vc.queue.put_wait(search)
-            await ctx.send(f"Música `{search.title}` adicionada ao queue")
-        
+            await vc.queue.put_wait(track)
+            await ctx.send(f"Música adicionada ao queue")
+
         vc.ctx = ctx
         setattr(vc,"loop",False)
